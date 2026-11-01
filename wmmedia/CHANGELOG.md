@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.1.0
+
+* Ported from Objective-C to plain C99 (`wmmedia.c`). Same behaviour, same options, pixel-identical tile; the unit, integration and ASan/UBSan tests all pass unchanged in substance.
+* No `libobjc` or `gcc[objc]` any more: builds with any C compiler, which makes packaging for distributions much simpler.
+* Makefile honours `CC`, `CFLAGS`, `LDFLAGS`, `PREFIX` and `DESTDIR` from the environment, and finds X11 through pkg-config (falls back to `-lXext -lX11`).
+* The 2.0.0 Objective-C source is kept in `objc/`.
+
 ## 2.0.0
 
 * New tile layout in wmvol's style: the same three LCD boxes, grey bevels and teal digits; state icon, elapsed/remaining time, title and artist tickers, LCD transport keys and a 10-segment progress bar.

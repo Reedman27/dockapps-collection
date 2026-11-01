@@ -1,6 +1,6 @@
 # wmmedia
 
-**A media-control dockapp for [Window Maker](https://www.windowmaker.org/), written in Objective-C, in the same LCD style as wmvol.**
+**A media-control dockapp for [Window Maker](https://www.windowmaker.org/), written in plain C, in the same LCD style as wmvol.**
 
 ![wmmedia docked in Window Maker (4x)](docs/screenshot.png)
 
@@ -46,17 +46,19 @@ Players are controlled by running a command, so anything those tools support wor
 
 ## Building
 
-Needs an Objective-C compiler with its runtime (`libobjc`) plus the libX11 and libXext headers. **No Foundation or GNUstep.**
+Needs a C compiler, make, and the libX11 and libXext headers (pkg-config is used if present). Nothing else.
 
 ```sh
-# Debian / Ubuntu  (gobjc pulls in the Objective-C runtime headers; there is no separate libobjc-dev on current releases)
-sudo apt install gobjc make libx11-dev libxext-dev playerctl
+# Debian / Ubuntu
+sudo apt install build-essential pkg-config libx11-dev libxext-dev playerctl
 # Fedora
-sudo dnf install gcc-objc make libX11-devel libXext-devel playerctl
+sudo dnf install gcc make pkgconf-pkg-config libX11-devel libXext-devel playerctl
 # Void
-doas xbps-install -S gcc-objc make libX11-devel libXext-devel playerctl
-# Arch (gcc already includes Objective-C)
-sudo pacman -S --needed gcc make libx11 libxext playerctl
+doas xbps-install -S base-devel pkg-config libX11-devel libXext-devel playerctl
+# Arch
+sudo pacman -S --needed base-devel pkgconf libx11 libxext playerctl
+# Gentoo
+sudo emerge -aq --noreplace virtual/pkgconfig x11-libs/libX11 x11-libs/libXext media-sound/playerctl
 
 make
 ./wmmedia &           # a loose dock icon appears; Alt-drag it into the dock
@@ -65,11 +67,12 @@ sudo make install     # PREFIX=/usr/local by default
 ./wmmedia -w          # preview as an ordinary window (NOT docked)
 ```
 
-The Makefile is plain POSIX make with overridable variables:
+The Makefile honours `CC`, `CFLAGS`, `LDFLAGS`, `PREFIX` and `DESTDIR` from the environment or the command line:
 
 ```sh
 make X11CFLAGS='-I/usr/X11R6/include' X11LIBS='-L/usr/X11R6/lib -lXext -lX11'
-make CC=clang OBJCFLAGS='-fobjc-runtime=gcc -I/usr/lib/gcc/x86_64-linux-gnu/13/include' OBJCLIBS=-lobjc   # path: gcc -print-file-name=include
+make CC=clang
+make install DESTDIR=/tmp/stage PREFIX=/usr   # for packagers
 ```
 
 ## Window Maker setup
@@ -112,7 +115,7 @@ All 36 themes shipped with Window Maker are exercised by the unit tests.
 * Between polls the clock is **extrapolated locally** and redrawn once a second, so the time and bar move smoothly without polling every second.
 * Wheel steps are coalesced into one relative volume command. The UI updates optimistically, and a poll that started before your last click is discarded, so the display does not flicker back.
 * Pure POSIX: `fork/execvp/pipe/poll/waitpid/sigaction/clock_gettime`. No `prctl`, `pipe2` or other Linux-only calls. Helpers are short-lived, so nothing is left behind if the dockapp dies.
-* Objective-C with its own tiny root class and C strings (no `NSObject`/`NSString`). Classes: `WMBackend` (`WMPlayerctl`, `WMMpc`), `WMJob` (subprocess), `WMTile` (renderer), `WMApp` (events and scheduling). Parsers and hit-testing are plain C functions so they can be unit tested.
+* One C file, split into small structs with `thing_verb()` functions: `Backend` (playerctl / mpc command lines and parsers), `Job` (non-blocking subprocess), `Tile` (renderer) and `App` (events and scheduling). Parsers and hit-testing are plain functions so they can be unit tested.
 * Titles are folded to what the 3×5 pixel font can show: upper-case ASCII, every non-ASCII character becomes `?`.
 
 ## Tests
@@ -126,17 +129,19 @@ The unit tests cover the parsers (including malformed input and a mutation fuzze
 
 ## Status
 
-Checked in this form (v2.0.0):
+Checked in this form (v2.1.0):
 
-* Builds without warnings with GCC 13 (`-Wall -Wextra`) and with clang using `-fobjc-runtime=gcc`; the whole test suite also passes under ASan + UBSan.
+* Builds without warnings with GCC 13 (`-std=c99 -Wall -Wextra`); the whole test suite also passes under ASan + UBSan. The C port renders pixel-identical tiles to the 2.0.0 Objective-C version (checked with `-D` dumps for playing, paused, stopped, remaining-time, custom-colour, stream and non-ASCII states).
 * **Real MPD** (`mpd` + `mpc`, null output): metadata, next, play/pause, wheel volume, seek and stop through real mouse events.
 * **Real `playerctl` 2.4.1 over D-Bus** against a minimal MPRIS player: confirmed that position and length are microseconds, and that play/pause, absolute seek (`SetPosition`) and volume arrive as expected.
 * **Real Window Maker** (Ubuntu's `wmaker`, under Xvfb): the tile docks with Alt-drag and the keys work while loose in the corner.
 
-**Not yet tried:** a real music player (Spotify, mpv, VLC, …) on a physical desktop, multi-monitor setups, GNUstep's libobjc2, and the BSDs. Reports welcome.
+**Not yet tried:** a real music player (Spotify, mpv, VLC, …) on a physical desktop, multi-monitor setups, and the BSDs. Reports welcome.
 
 Known limits: updates are polled, not event-driven (a `playerctl --follow` child would need Linux's `prctl` to be cleaned up reliably, which is not POSIX); players that report no length (streams) show the time but an empty bar; some players do not support seeking, and then a bar click does nothing.
 
 ## License
 
 MIT. Portions (tile shaping, pixel font, LCD style) derived from wmvol, also MIT; see `LICENSE`.
+
+The original Objective-C implementation (v2.0.0) is kept in [`objc/`](objc/) for reference.

@@ -1,24 +1,24 @@
-# POSIX make. Override anything on the command line, e.g.
-#   make CC=clang OBJCFLAGS='-fobjc-runtime=gnustep-2.0' OBJCLIBS=-lobjc2
-#   make X11CFLAGS='-I/usr/X11R6/include' X11LIBS='-L/usr/X11R6/lib -lX11 -lXext'
-CC         = cc
-CFLAGS     = -O2 -g
-STD        = -std=c99
-WARN       = -Wall -Wextra
-OBJCFLAGS  =
-OBJCLIBS   = -lobjc
-X11CFLAGS  =
-X11LIBS    = -lXext -lX11
-SANITIZE   =
-PREFIX     = /usr/local
-DESTDIR    =
+# Override anything on the command line or in the environment, e.g.
+#   make CC=clang
+#   make X11CFLAGS='-I/usr/X11R6/include' X11LIBS='-L/usr/X11R6/lib -lXext -lX11'
+CC         ?= cc
+CFLAGS     ?= -O2 -g
+STD         = -std=c99
+WARN        = -Wall -Wextra
+PKG_CONFIG ?= pkg-config
+X11CFLAGS  ?= $(shell $(PKG_CONFIG) --cflags x11 xext 2>/dev/null)
+X11LIBS    ?= $(shell $(PKG_CONFIG) --libs x11 xext 2>/dev/null || echo "-lXext -lX11")
+SANITIZE   ?=
+PREFIX     ?= /usr/local
+DESTDIR    ?=
 
-ALLFLAGS = $(CFLAGS) $(STD) $(WARN) $(OBJCFLAGS) $(X11CFLAGS) $(SANITIZE)
+ALLCFLAGS = $(CFLAGS) $(STD) $(WARN) $(X11CFLAGS) $(SANITIZE)
+ALLLDFLAGS = $(LDFLAGS) $(SANITIZE)
 
 all: wmmedia
 
-wmmedia: wmmedia.m
-	$(CC) $(ALLFLAGS) -o wmmedia wmmedia.m $(X11LIBS) $(OBJCLIBS)
+wmmedia: wmmedia.c
+	$(CC) $(ALLCFLAGS) $(ALLLDFLAGS) -o wmmedia wmmedia.c $(X11LIBS)
 
 install: wmmedia
 	mkdir -p $(DESTDIR)$(PREFIX)/bin $(DESTDIR)$(PREFIX)/share/man/man1
@@ -30,9 +30,9 @@ install: wmmedia
 uninstall:
 	rm -f $(DESTDIR)$(PREFIX)/bin/wmmedia $(DESTDIR)$(PREFIX)/share/man/man1/wmmedia.1
 
-# parser/helper unit tests (they #include wmmedia.m, so sanitizers apply too)
-unit: tests/parse_test.m wmmedia.m
-	$(CC) $(ALLFLAGS) -o tests/parse_test tests/parse_test.m $(X11LIBS) $(OBJCLIBS)
+# parser/helper unit tests (they #include wmmedia.c, so sanitizers apply too)
+unit: tests/parse_test.c wmmedia.c
+	$(CC) $(ALLCFLAGS) $(ALLLDFLAGS) -o tests/parse_test tests/parse_test.c $(X11LIBS)
 	./tests/parse_test
 
 test: wmmedia unit

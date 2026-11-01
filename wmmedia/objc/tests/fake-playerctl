@@ -1,0 +1,15 @@
+#!/bin/sh
+# Fake playerctl for tests. State file: $FAKE_STATE, one line:
+#   status<TAB>volume<TAB>artist<TAB>title<TAB>position_us<TAB>length_us
+# or the single word "none" (= no player running).  Every call is appended to $FAKE_LOG.
+[ -n "$FAKE_LOG" ] && echo "$*" >> "$FAKE_LOG"
+[ -f "$FAKE_STATE" ] || printf 'Playing\t0.55\tDaft Punk\tAround the World\t83000000\t240000000\n' > "$FAKE_STATE"
+if grep -q '^none' "$FAKE_STATE"; then echo "No players found" >&2; exit 1; fi
+case "$*" in
+  *metadata*) cat "$FAKE_STATE" ;;
+  *play-pause*)
+    if grep -q '^Playing' "$FAKE_STATE"; then sed -i 's/^Playing/Paused/' "$FAKE_STATE"
+    else sed -i -e 's/^Paused/Playing/' -e 's/^Stopped/Playing/' "$FAKE_STATE"; fi ;;
+  *stop*) sed -i -e 's/^Playing/Stopped/' -e 's/^Paused/Stopped/' "$FAKE_STATE" ;;
+esac
+exit 0

@@ -1,0 +1,8 @@
+#!/bin/sh
+# Fake mpc for tests. Logs argv to $FAKE_LOG, prints a canned `mpc status`.
+[ -n "$FAKE_LOG" ] && echo "$*" >> "$FAKE_LOG"
+case "$*" in
+  *status*)
+    printf 'Boards of Canada\037Roygbiv\n[playing] #3/12   0:14/2:31 (9%%)\nvolume: 80%%   repeat: off   random: off   single: off   consume: off\n' ;;
+esac
+exit 0

@@ -15,7 +15,7 @@ Generally, you should consult the individual README before running the commands 
 | Dockapp | Language | What it does |
 |---|---|---|
 | [wmvol](wmvol/) | C (Xlib, Xft, XShape) | PipeWire volume tile with a KDE-style popup mixer: output/input volume, mute, device selection. |
-| [wmmedia](wmmedia/) | Objective-C (no Foundation/GNUstep) | Media-control tile: previous / play-pause / next, title and artist tickers, time and a seekable progress bar. Works with `playerctl` (MPRIS) or `mpc` (MPD). |
+| [wmmedia](wmmedia/) | C (Xlib, XShape) | Media-control tile: previous / play-pause / next, title and artist tickers, time and a seekable progress bar. Works with `playerctl` (MPRIS) or `mpc` (MPD). |
 
 Both share the same LCD look, so they match each other in the dock.
 
@@ -28,15 +28,34 @@ dockapps-collection/
 ├── readme.md
 ├── LICENSE
 ├── .gitignore
+├── metadata/  profiles/  x11-plugins/   (Gentoo overlay: live ebuilds)
 ├── wmvol/
 │   ├── README.md  LICENSE  CHANGELOG.md
 │   ├── Makefile   wmvol.c  wmvol.1
 │   ├── docs/      tests/
 └── wmmedia/
     ├── README.md  LICENSE  CHANGELOG.md
-    ├── Makefile   wmmedia.m  wmmedia.1
-    ├── docs/      tests/
+    ├── Makefile   wmmedia.c  wmmedia.1
+    ├── docs/      tests/      objc/  (original Objective-C version)
 ```
+
+## Gentoo overlay
+
+This repo is also a Gentoo overlay with live (`-9999`) ebuilds for both dockapps:
+
+```bash
+sudo emerge -aq app-eselect/eselect-repository dev-vcs/git
+sudo eselect repository add dockapps git https://github.com/Reedman27/dockapps-collection.git
+sudo emaint sync -r dockapps
+
+# live ebuilds have no keywords, so accept them
+echo "x11-plugins/wmvol **"   | sudo tee -a /etc/portage/package.accept_keywords/dockapps
+echo "x11-plugins/wmmedia **" | sudo tee -a /etc/portage/package.accept_keywords/dockapps
+
+sudo emerge -aq x11-plugins/wmvol x11-plugins/wmmedia
+```
+
+After pushing changes, `sudo emerge -aq @live-rebuild` pulls and rebuilds the latest.
 
 ## Support
 (issue reporting, pull request instructions, official links, etc.)
@@ -64,15 +83,15 @@ Preview it in an ordinary window before docking (`-w` is for testing only, it is
 
 **wmvol**: C compiler, make, pkg-config, libX11 / libXext / libXft headers. At runtime: PipeWire and WirePlumber (`wpctl`); optionally `pactl` (event-driven updates) and `pavucontrol` (full mixer).
 
-**wmmedia**: Objective-C compiler with runtime (`libobjc`), make, libX11 / libXext headers. At runtime: `playerctl` (default) or `mpc`.
+**wmmedia**: C compiler, make, libX11 / libXext headers. At runtime: `playerctl` (default) or `mpc`.
 
 | Distribution | Install |
 |---|---|
-| Void | `doas xbps-install -S base-devel pkg-config libX11-devel libXext-devel libXft-devel gcc-objc pipewire wireplumber pulseaudio-utils pavucontrol playerctl` |
-| Debian / Ubuntu | `sudo apt install build-essential gobjc pkg-config libx11-dev libxext-dev libxft-dev wireplumber pipewire-pulse pulseaudio-utils pavucontrol playerctl` |
-| Fedora | `sudo dnf install gcc gcc-objc make pkgconf-pkg-config libX11-devel libXext-devel libXft-devel wireplumber pipewire-pulseaudio pulseaudio-utils pavucontrol playerctl` |
+| Void | `doas xbps-install -S base-devel pkg-config libX11-devel libXext-devel libXft-devel pipewire wireplumber pulseaudio-utils pavucontrol playerctl` |
+| Debian / Ubuntu | `sudo apt install build-essential pkg-config libx11-dev libxext-dev libxft-dev wireplumber pipewire-pulse pulseaudio-utils pavucontrol playerctl` |
+| Fedora | `sudo dnf install gcc make pkgconf-pkg-config libX11-devel libXext-devel libXft-devel wireplumber pipewire-pulseaudio pulseaudio-utils pavucontrol playerctl` |
 | Arch | `sudo pacman -S --needed base-devel pkgconf libx11 libxext libxft pipewire wireplumber pipewire-pulse libpulse pavucontrol playerctl` |
-| Gentoo | `sudo emerge -aq --noreplace dev-build/make virtual/pkgconfig x11-libs/libX11 x11-libs/libXext x11-libs/libXft media-video/pipewire media-video/wireplumber media-libs/libpulse media-sound/pavucontrol media-sound/playerctl` (PipeWire needs the `sound-server` USE flag, and GCC needs the `objc` USE flag) |
+| Gentoo | `sudo emerge -aq --noreplace dev-build/make virtual/pkgconfig x11-libs/libX11 x11-libs/libXext x11-libs/libXft media-video/pipewire media-video/wireplumber media-libs/libpulse media-sound/pavucontrol media-sound/playerctl` (PipeWire needs the `sound-server` USE flag) |
 
 For other distributions, or NixOS, see each app's README.
 

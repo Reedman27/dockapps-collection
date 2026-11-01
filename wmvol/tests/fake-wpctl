@@ -1,0 +1,37 @@
+#!/usr/bin/env python3
+"""Fake wpctl for tests. State in $FAKE_WPCTL_STATE (json), log in $FAKE_WPCTL_LOG."""
+import json, os, sys
+sp = os.environ["FAKE_WPCTL_STATE"]; lp = os.environ.get("FAKE_WPCTL_LOG")
+if not os.path.exists(sp):
+    json.dump({"sinks": [[54, "Built-in Audio Analog Stereo", 0.75, 0, 1],
+                         [55, "HDMI / DisplayPort 1 Output", 1.0, 0, 0],
+                         [61, "Sony WH-1000XM4 Bluetooth Headphones (A2DP)", 0.4, 0, 0]],
+               "sources": [[56, "Built-in Audio Analog Stereo", 1.0, 0, 1],
+                           [62, "USB Condenser Microphone", 0.8, 0, 0]]}, open(sp, "w"))
+st = json.load(open(sp)); a = sys.argv[1:]
+if lp: open(lp, "a").write(" ".join(a) + "\n")
+def find(i):
+    for k in ("sinks", "sources"):
+        for d in st[k]:
+            if str(d[0]) == i: return k, d
+    sys.exit(1)
+def line(d):
+    return " │  %s %3d. %-44s [vol: %.2f%s]" % ("*" if d[4] else " ", d[0], d[1], d[2], " MUTED" if d[3] else "")
+if a[0] == "status":
+    print("PipeWire 'pipewire-0' [1.4.2, alex@neko-void, cookie:123]\n └─ Clients:\n        33. WirePlumber  [1.4.2]\n")
+    print("Audio\n ├─ Devices:\n │      49. Built-in Audio                      [alsa]\n │")
+    print(" ├─ Sinks:")
+    for d in st["sinks"]: print(line(d))
+    print(" │\n ├─ Sink endpoints:\n │\n ├─ Sources:")
+    for d in st["sources"]: print(line(d))
+    print(" │\n ├─ Source endpoints:\n │\n └─ Streams:\n\nVideo\n ├─ Devices:\n\nSettings\n └─ Default Configured Devices:")
+elif a[0] == "set-volume":
+    args = [x for x in a[1:] if x != "-l"]   # drop the -l flag, its limit value stays
+    k, d = find(args[-2]); d[2] = float(args[-1])
+elif a[0] == "set-mute":
+    k, d = find(a[1]); d[3] = {"1": 1, "0": 0, "toggle": 1 - d[3]}[a[2]]
+elif a[0] == "set-default":
+    k, d = find(a[1])
+    for x in st[k]: x[4] = 0
+    d[4] = 1
+json.dump(st, open(sp, "w"))

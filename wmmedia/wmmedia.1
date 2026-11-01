@@ -1,0 +1,83 @@
+.TH WMMEDIA 1 "2026" "wmmedia 2.0.0" "User Commands"
+.SH NAME
+wmmedia \- Window Maker dockapp for controlling a media player
+.SH SYNOPSIS
+.B wmmedia
+[\fB\-display\fR \fIDPY\fR] [\fB\-w\fR] [\fB\-b\fR \fIBACKEND\fR] [\fB\-p\fR \fIPLAYER\fR]
+[\fB\-s\fR \fIN\fR] [\fB\-r\fR] [\fB\-fg\fR \fIRRGGBB\fR] [\fB\-t\fR] [\fB\-c\fR \fIFILE\fR]
+.SH DESCRIPTION
+A 64x64 dock tile in the style of wmvol: three black bevelled LCD boxes showing a state icon,
+the elapsed (or remaining) time, scrolling title and artist lines, previous / play-pause / next
+keys and a progress bar. Window Maker's own dock-tile texture shows around the boxes.
+The player is controlled by running
+\fBplayerctl\fR(1) (any MPRIS player) or \fBmpc\fR(1) (MPD).
+.SH OPTIONS
+.TP
+.BI \-display " DPY"
+X display to use.
+.TP
+.B \-w
+Run in a normal window instead of docking (preview only; without this option the tile is a dockapp).
+.TP
+.BI \-b " BACKEND"
+\fBplayerctl\fR (default) or \fBmpc\fR.
+.TP
+.BI \-p " PLAYER"
+Player name passed to \fBplayerctl \-p\fR (for example \fBspotify\fR or \fBmpv\fR).
+By default playerctl picks the first player it finds.
+.TP
+.BI \-s " N"
+Mouse-wheel volume step in percent, 1\-50 (default 5).
+.TP
+.B \-r
+Show the remaining time instead of the elapsed time (clicking the time toggles it).
+.TP
+.BI \-fg " RRGGBB"
+LCD colour (default 20b2aa, the wmvol teal). Always wins over \fB\-t\fR.
+.TP
+.B \-t
+Take the LCD colour from the Window Maker theme instead of using the fixed teal.
+.TP
+.BI \-c " FILE"
+Window Maker defaults file read by \fB\-t\fR
+(default \fB~/GNUstep/Defaults/WindowMaker\fR).
+.TP
+.B \-notheme
+Accepted for compatibility with 1.x; this is now the default.
+.TP
+.BI \-D " PREFIX"
+Debug: write PREFIX\-tile.ppm after the first poll and exit.
+.TP
+.B \-h, \-v
+Help, version.
+.SH MOUSE
+.TP
+Left click on a key
+Previous / play-pause / next (fires on release; drag off the key to cancel).
+.TP
+Left click or drag on the progress bar
+Seek. While dragging the time box shows the target; one seek is sent on release.
+.TP
+Left click on the time
+Toggle elapsed / remaining time.
+.TP
+Wheel
+Volume up/down by the step. Shift+wheel changes it by 1%. The volume is shown for 1.5 s.
+.TP
+Middle click
+Stop.
+.PP
+The keys, wheel and bar do nothing while no player is running. Hold the window manager modifier
+to drag the tile inside the dock.
+.SH THEME
+With \fB\-t\fR the LCD colours are derived from the colours of the active Window Maker theme, read from
+\fB~/GNUstep/Defaults/WindowMaker\fR and re-checked about once a second, so applying a theme
+recolours the tile without a restart.
+.SH FILES AND ENVIRONMENT
+.TP
+.B ~/GNUstep/Defaults/WindowMaker
+Theme source for \fB\-t\fR. The player commands are found through \fBPATH\fR.
+.SH SEE ALSO
+.BR playerctl (1),
+.BR mpc (1),
+.BR wmaker (1)

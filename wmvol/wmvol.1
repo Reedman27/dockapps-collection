@@ -1,0 +1,43 @@
+.TH WMVOL 1 "2026" "wmvol 1.0.1" "User Commands"
+.SH NAME
+wmvol \- Window Maker PipeWire volume dockapp
+.SH SYNOPSIS
+.B wmvol
+[\fB\-display\fR \fIDPY\fR] [\fB\-w\fR] [\fB\-s\fR \fIN\fR] [\fB\-l\fR \fIN\fR] [\fB\-m\fR \fICMD\fR] [\fB\-f\fR \fIFONT\fR] [\fB\-fg\fR \fIRRGGBB\fR] [\fB\-D\fR \fIPREFIX\fR]
+.SH DESCRIPTION
+A 64x64 Window Maker dockapp showing the default PipeWire output volume. Left click opens a popup mixer
+with output/input volume, mute and default-device selection. Uses \fBwpctl\fR(1); updates instantly if
+\fBpactl\fR(1) is installed.
+.SH OPTIONS
+.TP
+.B \-display DPY
+X display to use.
+.TP
+.B \-w
+Run in a normal window instead of docking.
+.TP
+.B \-s N
+Wheel step in percent, 1\-100 (default 5).
+.TP
+.B \-l N
+Volume limit in percent, 10\-200 (default 100).
+.TP
+.B \-m CMD
+Command for "Open full mixer" (default pavucontrol).
+.TP
+.B \-f FONT
+Popup font as an Xft pattern (default sans-10).
+.TP
+.B \-fg RRGGBB
+LCD colour (default 20b2aa).
+.TP
+.B \-D PREFIX
+Debug: write PREFIX\-tile.ppm and PREFIX\-popup.ppm and exit.
+.SH MOUSE
+Tile: left click popup; wheel output volume (shift: 1%); middle click mute; right click next output;
+ctrl+wheel / ctrl+middle input volume / mute; ctrl+right click open mixer.
+Popup: click icon to mute, drag slider, click a device to make it default, Esc or click outside to close.
+Hold the Window Maker modifier (usually Alt) and drag to move the tile in the dock.
+.SH SEE ALSO
+.BR wpctl (1),
+.BR wmaker (1)

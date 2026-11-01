@@ -1,0 +1,9 @@
+#!/bin/sh
+# Fake `pactl subscribe` for tests: records how it was started, then idles.
+# Used to check that wmvol starts helpers with default signal handling and that
+# they die together with wmvol.
+[ "$1" = subscribe ] || exit 0
+mask=$(awk '/^SigIgn/ { print $2 }' /proc/self/status)
+if [ $(( 0x$mask & 0x1000 )) -ne 0 ]; then echo "SIGPIPE=ignored"; else echo "SIGPIPE=default"; fi > "$FAKE_DIR/pactl-sigpipe"
+echo $$ > "$FAKE_DIR/pactl-pid"
+exec sleep 600

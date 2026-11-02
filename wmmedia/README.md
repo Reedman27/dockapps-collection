@@ -1,147 +1,279 @@
-# wmmedia
+# wmvol
 
-**A media-control dockapp for [Window Maker](https://www.windowmaker.org/), written in plain C, in the same LCD style as wmvol.**
+A lightweight PipeWire volume dockapp for [Window Maker](https://www.windowmaker.org/), with a popup mixer for output and input devices.
 
-![wmmedia docked in Window Maker (4x)](docs/screenshot.png)
+> [!IMPORTANT]
+> **AI-written software.** wmvol was written entirely by Claude (Anthropic) from human requirements and feedback. The C source, tests, man page, and this README were AI-generated. A human has built and run it on Void Linux with Window Maker, but the source has not received a complete line-by-line human review. Independent code review and testing are welcome; see [Project status](#project-status).
 
-<sub>Docked in a real Window Maker session (Xvfb), 4x. Pixel-exact close-up: [docs/tile-8x.png](docs/tile-8x.png) (8x) or [docs/tile.png](docs/tile.png) (1x).</sub>
+![wmvol tile in a Window Maker dock (6×) with its popup mixer](docs/screenshot.png)
 
-A 64×64 tile with **previous / play-pause / next** keys, **title and artist** tickers, the **elapsed (or remaining) time** and a **progress bar you can click or drag to seek**. It uses wmvol's three black bevelled LCD boxes and teal digits, cut out with a shape mask so Window Maker draws its own dock-tile texture around them and the tile matches the rest of your dock.
+<sub>The wmvol tile docked in Window Maker (6×), with the popup mixer open. Pixel-exact tile images: [8×](docs/tile-8x.png) or [original size](docs/tile.png).</sub>
 
-```
- ┌──────┐ ┌────────┐
- │  ▶   │ │  1:23  │   state icon · elapsed / remaining time
- └──────┘ └────────┘
- ┌──────────────────┐
- │ AROUND THE WORLD │   title    (scrolls when it does not fit)
- │ DAFT PUNK        │   artist
- │ [|◀◀] [❚❚] [▶▶|] │   previous / play-pause / next
- │ ▮▮▮▮▯▯▯▯▯▯       │   progress bar (click or drag = seek)
- └──────────────────┘
-```
+## Overview
 
-![The four states: playing, paused, stopped, no player](docs/states.png)
+wmvol puts everyday audio controls in a 64×64 Window Maker dock tile. The tile displays the default output volume. Open its popup mixer to adjust output and input levels, toggle mute, and choose default audio devices.
 
-<sub>Playing (teal) · paused (amber) · stopped · no player (amber, keys disabled).</sub>
+The tile uses Xlib drawing and XShape masking, allowing the surrounding Window Maker dock texture to remain visible. It shares its LCD-inspired appearance with [wmmedia](../wmmedia/README.md).
 
-## Controls
+## Features
 
-| Input | Action |
+- **Output and input controls:** adjust volume and mute the default devices.
+- **Device selection:** choose default output and input devices from the popup.
+- **Quick mouse controls:** use the wheel for volume, middle-click for mute, and right-click to cycle output devices.
+- **Full mixer shortcut:** launch `pavucontrol` or another configured mixer with Ctrl + right-click.
+- **Window Maker integration:** a shaped tile designed to sit naturally in the dock.
+- **Low overhead:** plain C with Xlib, Xft, and XShape; approximately 4 MB of RAM and negligible idle CPU, as measured by the project.
+- **Responsive updates:** use `pactl subscribe` for event-driven refreshes when available, with polling as a fallback.
+- **Simple audio backend:** all audio discovery and control is handled through WirePlumber's `wpctl`.
+
+## Requirements
+
+wmvol targets Linux.
+
+| Purpose | Requirements |
 |---|---|
-| Left click a key | previous / play-pause / next (fires on release; drag off the key to cancel) |
-| Left click or drag on the bar | seek (a drag shows the target time live and sends one seek on release) |
-| Left click on the time | toggle elapsed ⇄ remaining |
-| Mouse wheel | volume ± step (default 5 %); the time box and the bar show the volume for 1.5 s |
-| Shift + wheel | volume ± 1 % |
-| Middle click | stop |
+| Build | C compiler, `make`, `pkg-config`, X11, Xext, and Xft development headers |
+| Runtime | PipeWire, WirePlumber, and `wpctl` |
+| Optional | `pactl` for event-driven updates; `pavucontrol` for the full mixer |
 
-Right click is left alone: Window Maker uses it for the dock menu. To move the tile in the dock, hold your WM modifier (Alt) while dragging, because the tile handles its own clicks.
+### Install dependencies
 
-## Backends
-
-Players are controlled by running a command, so anything those tools support works:
-
-* **`playerctl`** (default): any MPRIS player: Spotify, mpv, VLC, Firefox, Chromium, … Pick one with `-p NAME`; otherwise playerctl uses the first one it finds.
-* **`mpc`** (`-b mpc`): MPD. Seeking goes in whole percent steps (that is what `mpc seek` offers).
-
-## Building
-
-Needs a C compiler, make, and the libX11 and libXext headers (pkg-config is used if present). Nothing else.
+<details>
+<summary><strong>Void Linux</strong></summary>
 
 ```sh
-# Debian / Ubuntu
-sudo apt install build-essential pkg-config libx11-dev libxext-dev playerctl
-# Fedora
-sudo dnf install gcc make pkgconf-pkg-config libX11-devel libXext-devel playerctl
-# Void
-doas xbps-install -S base-devel pkg-config libX11-devel libXext-devel playerctl
-# Arch
-sudo pacman -S --needed base-devel pkgconf libx11 libxext playerctl
-# Gentoo
-sudo emerge -aq --noreplace virtual/pkgconfig x11-libs/libX11 x11-libs/libXext media-sound/playerctl
+doas xbps-install -S base-devel pkg-config libX11-devel libXext-devel libXft-devel
+doas xbps-install -S pipewire wireplumber pulseaudio-utils pavucontrol
+```
+</details>
 
+<details>
+<summary><strong>Debian / Ubuntu</strong></summary>
+
+```sh
+sudo apt install build-essential pkg-config libx11-dev libxext-dev libxft-dev \
+    wireplumber pipewire-pulse pulseaudio-utils pavucontrol
+```
+</details>
+
+<details>
+<summary><strong>Fedora</strong></summary>
+
+```sh
+sudo dnf install gcc make pkgconf-pkg-config libX11-devel libXext-devel libXft-devel \
+    wireplumber pipewire-pulseaudio pulseaudio-utils pavucontrol
+```
+</details>
+
+<details>
+<summary><strong>Arch Linux</strong></summary>
+
+```sh
+sudo pacman -S --needed base-devel pkgconf libx11 libxext libxft
+sudo pacman -S --needed pipewire wireplumber pipewire-pulse libpulse pavucontrol
+```
+</details>
+
+<details>
+<summary><strong>Gentoo</strong></summary>
+
+The compiler is normally provided by `@system`. Install the build dependencies:
+
+```sh
+sudo emerge --ask --noreplace dev-build/make virtual/pkgconfig \
+    x11-libs/libX11 x11-libs/libXext x11-libs/libXft
+```
+
+Enable PipeWire's `sound-server` USE flag and install the audio components:
+
+```sh
+echo "media-video/pipewire sound-server" | sudo tee -a /etc/portage/package.use/pipewire
+sudo emerge --ask media-video/pipewire media-video/wireplumber \
+    media-libs/libpulse media-sound/pavucontrol
+```
+
+If your Portage tree uses `sys-devel/make` rather than `dev-build/make`, use the package name available in your tree. You can also install wmvol through this repository's Gentoo overlay; see the [collection README](../README.md#gentoo-overlay).
+</details>
+
+<details>
+<summary><strong>NixOS</strong></summary>
+
+Provide the build and runtime dependencies through your system configuration or a development shell. wmvol is not currently packaged in nixpkgs.
+</details>
+
+## Build and install
+
+Clone the repository and build wmvol:
+
+```sh
+git clone https://github.com/Reedman27/dockapps-collection.git
+cd dockapps-collection/wmvol
 make
-./wmmedia &           # a loose dock icon appears; Alt-drag it into the dock
-sudo make install     # PREFIX=/usr/local by default
-
-./wmmedia -w          # preview as an ordinary window (NOT docked)
 ```
 
-The Makefile honours `CC`, `CFLAGS`, `LDFLAGS`, `PREFIX` and `DESTDIR` from the environment or the command line:
+You can preview the tile in a normal window before adding it to the dock:
 
 ```sh
-make X11CFLAGS='-I/usr/X11R6/include' X11LIBS='-L/usr/X11R6/lib -lXext -lX11'
-make CC=clang
-make install DESTDIR=/tmp/stage PREFIX=/usr   # for packagers
+./wmvol -w
 ```
+
+Install using the default `/usr/local` prefix:
+
+```sh
+sudo make install
+```
+
+Use `doas` instead of `sudo` if that is your system's privilege tool.
+
+### Installation options
+
+```sh
+sudo make install PREFIX=/usr
+make install DESTDIR=/tmp/stage PREFIX=/usr
+sudo make uninstall
+```
+
+For uninstalling, use the same `PREFIX` that was used during installation. `DESTDIR` is intended for staged packaging installs.
+
+### Gentoo
+
+The repository includes a live ebuild:
+
+```sh
+sudo eselect repository add dockapps git https://github.com/Reedman27/dockapps-collection.git
+sudo emaint sync -r dockapps
+echo "x11-plugins/wmvol **" | sudo tee -a /etc/portage/package.accept_keywords/dockapps
+sudo emerge --ask x11-plugins/wmvol
+```
+
+For the complete overlay setup, including wmmedia, see the [collection README](../README.md#gentoo-overlay).
 
 ## Window Maker setup
 
-```sh
-wmmedia &        # no -w: -w makes a plain window, which is not a dockapp
+1. Start wmvol without `-w`:
+
+   ```sh
+   wmvol &
+   ```
+
+2. Hold **Alt** (the default Window Maker modifier) and drag the tile into the dock.
+3. Open the docked tile's menu and enable **Start when Window Maker is started**.
+
+Alternatively, add `wmvol &` to:
+
+```text
+~/GNUstep/Library/WindowMaker/autostart
 ```
 
-The tile first shows up as a loose icon near a screen corner, like every dockapp. Alt-drag it into the dock, then enable *Start when Window Maker is started* from its menu (or add `wmmedia &` to `~/GNUstep/Library/WindowMaker/autostart`: one method, not both).
+Choose one startup method. Enabling both can launch two instances.
 
-## Colours
+## Controls
 
-The default is **wmvol's look**: teal digits (`20b2aa`), amber for paused / no player, wmvol's grey bevels. Two options change it:
+### Dock tile
 
-* `-fg RRGGBB` pins a different LCD colour.
-* `-t` takes the colour from your Window Maker theme instead. wmmedia reads `~/GNUstep/Defaults/WindowMaker`, picks the theme's most vivid colour (from `FTitleBack`, `IconTitleBack`, `MenuTitleBack`, `MenuTextBack`, `UTitleBack`) as the accent and derives the LCD digits, glass and dim shades from it. Gray themes give a gray LCD, and on amber/gold themes "paused" switches to blue so it still stands out. The file is re-checked about once a second, so applying a theme recolours the tile live. `-c FILE` reads a different defaults file. If the file is missing or has no usable colour you get the teal. `-fg` always wins over `-t`.
+| Input | Action |
+|---|---|
+| Left-click | Open or close the popup mixer |
+| Mouse wheel | Adjust output volume |
+| Shift + mouse wheel | Adjust output volume in 1% steps |
+| Middle-click | Toggle output mute |
+| Right-click | Switch to the next output device |
+| Ctrl + mouse wheel | Adjust input volume |
+| Ctrl + middle-click | Toggle input mute |
+| Ctrl + right-click | Open the full mixer |
 
-All 36 themes shipped with Window Maker are exercised by the unit tests.
+When the output device name is too long for the display, it scrolls across the LCD.
 
-## Options
+The tile handles its own mouse input. To move it in Window Maker, hold the configured modifier (Alt by default) while dragging.
 
+### Popup mixer
+
+| Input | Action |
+|---|---|
+| Click speaker or microphone icon | Toggle mute |
+| Drag a volume slider | Set volume |
+| Click a device | Make it the default |
+| Mouse wheel | Adjust volume |
+| Esc or click outside | Close the popup |
+
+Increasing the volume of a muted device automatically unmutes it, matching the behaviour of KDE's audio controls.
+
+## Command-line options
+
+```text
+-display DPY   X display to use (-d also works)
+-w             Run in a normal window instead of dock mode (preview only)
+-s N           Mouse-wheel volume step, 1–100 (default: 5)
+-l N           Maximum volume, 10–200% (default: 100)
+-m CMD         Full mixer command (default: pavucontrol)
+-f FONT        Popup font as an Xft pattern (default: sans-10)
+-fg RRGGBB     LCD accent colour (default: 20b2aa)
+-D PREFIX      Write PREFIX-tile.ppm and PREFIX-popup.ppm, then exit
+-v             Print version and exit
+-h             Print usage and exit
 ```
--display DPY   X display
--w             run in a normal window instead of docking (preview only)
--b BACKEND     playerctl (default) or mpc
--p PLAYER      playerctl player name (e.g. spotify, mpv)
--s N           wheel volume step, 1-50 percent (default 5)
--r             show remaining time instead of elapsed (click the time to toggle)
--fg RRGGBB     LCD colour (default 20b2aa)
--t             take the LCD colour from the Window Maker theme
--c FILE        Window Maker defaults file for -t
--D PREFIX      debug: write PREFIX-tile.ppm after the first poll and exit
-```
 
-`-notheme` from wmmedia 1.x is still accepted (it is now the default).
+The `-l` option sets the highest volume wmvol will request. Values above 100% can amplify beyond the normal software volume range.
+
+## Troubleshooting
+
+**The tile will not drag into the dock.** Hold Alt (or your configured Window Maker modifier) while dragging.
+
+**The tile appears as a normal window.** You probably started it with `-w`. Run `wmvol` without that option for dock mode.
+
+**Changes made in other audio applications appear late.** Without `pactl`, wmvol checks for changes by polling. Install `pulseaudio-utils` (or the appropriate package providing `pactl`) to enable event-driven updates.
+
+**The full mixer does not open.** wmvol launches `pavucontrol` by default. Install it or choose another command with `-m`.
+
+**The device list looks incorrect.** wmvol parses the output of `wpctl status`. When reporting this issue, include the raw command output and your WirePlumber version.
 
 ## How it works
 
-* One single-threaded `poll()` loop. The player is queried by a short-lived `playerctl metadata` / `mpc status` subprocess every ~2 s (3 s when no player is running) and 150 ms after every action. Subprocesses are non-blocking and killed after 4 s, so the UI never waits on a player.
-* Between polls the clock is **extrapolated locally** and redrawn once a second, so the time and bar move smoothly without polling every second.
-* Wheel steps are coalesced into one relative volume command. The UI updates optimistically, and a poll that started before your last click is discarded, so the display does not flicker back.
-* Pure POSIX: `fork/execvp/pipe/poll/waitpid/sigaction/clock_gettime`. No `prctl`, `pipe2` or other Linux-only calls. Helpers are short-lived, so nothing is left behind if the dockapp dies.
-* One C file, split into small structs with `thing_verb()` functions: `Backend` (playerctl / mpc command lines and parsers), `Job` (non-blocking subprocess), `Tile` (renderer) and `App` (events and scheduling). Parsers and hit-testing are plain functions so they can be unit tested.
-* Titles are folded to what the 3×5 pixel font can show: upper-case ASCII, every non-ASCII character becomes `?`.
+wmvol is a single-threaded C application built around `poll()` and non-blocking subprocesses.
 
-## Tests
+- **Device discovery:** `wpctl status` supplies the output and input device lists and their current state.
+- **Volume changes:** updates are debounced and sent as absolute values, avoiding one subprocess per wheel notch.
+- **Change notifications:** `pactl subscribe` triggers refreshes when available; otherwise wmvol polls.
+- **Rendering:** Xlib draws the tile, Xft renders popup text, and XShape makes the area around the LCD panels transparent.
+- **Responsive interaction:** the interface updates optimistically and discards stale refresh results so sliders do not jump backwards while being dragged.
+
+## Testing
+
+Run the test suite from this directory:
 
 ```sh
-make test     # unit + fuzz tests, then the Xvfb integration test (needs xvfb-run, xdotool)
-make asan     # the same, under AddressSanitizer + UBSan
+make test
+make asan
 ```
 
-The unit tests cover the parsers (including malformed input and a mutation fuzzer), clocks, hit areas, backend command lines and the theme code. The integration test drives the real binary with synthetic mouse events against fake `playerctl`/`mpc` scripts, asserts the exact commands issued (including seeks and drags) and checks what is drawn (ImageMagick `import`, otherwise those checks are skipped).
+`make test` runs parser unit tests, including mutation fuzzing, followed by the Xvfb integration test. `make asan` runs the same tests with AddressSanitizer and UndefinedBehaviorSanitizer.
 
-## Status
+The integration test runs wmvol under Xvfb with a fake `wpctl`, sends synthetic mouse and keyboard input through XTest, and checks the exact commands wmvol issues.
 
-Checked in this form (v2.1.0):
+The integration test requires `xvfb-run`, Python 3, and the XTest development headers. Package examples:
 
-* Builds without warnings with GCC 13 (`-std=c99 -Wall -Wextra`); the whole test suite also passes under ASan + UBSan. The C port renders pixel-identical tiles to the 2.0.0 Objective-C version (checked with `-D` dumps for playing, paused, stopped, remaining-time, custom-colour, stream and non-ASCII states).
-* **Real MPD** (`mpd` + `mpc`, null output): metadata, next, play/pause, wheel volume, seek and stop through real mouse events.
-* **Real `playerctl` 2.4.1 over D-Bus** against a minimal MPRIS player: confirmed that position and length are microseconds, and that play/pause, absolute seek (`SetPosition`) and volume arrive as expected.
-* **Real Window Maker** (Ubuntu's `wmaker`, under Xvfb): the tile docks with Alt-drag and the keys work while loose in the corner.
+```sh
+sudo pacman -S --needed xorg-server-xvfb python python-pytest libxtst
+sudo apt install xvfb python3 libxtst-dev
+sudo dnf install xorg-x11-server-Xvfb python3 libXtst-devel
+```
 
-**Not yet tried:** a real music player (Spotify, mpv, VLC, …) on a physical desktop, multi-monitor setups, and the BSDs. Reports welcome.
+Passing the tests does not guarantee compatibility with every PipeWire/WirePlumber configuration, Window Maker theme, or multi-monitor setup.
 
-Known limits: updates are polled, not event-driven (a `playerctl --follow` child would need Linux's `prctl` to be cleaned up reliably, which is not POSIX); players that report no length (streams) show the time but an empty bar; some players do not support seeking, and then a bar click does nothing.
+## Project status
+
+wmvol was written entirely by Claude (Anthropic) from human requirements and feedback. The C source, tests, man page, and README were AI-generated.
+
+A human has built and run wmvol on Void Linux with Window Maker. The source has not received a complete line-by-line human review. Automated checks include warning-free builds, cppcheck, unit tests, Xvfb integration tests, and ASan/UBSan runs against a simulated `wpctl` backend and synthetic input.
+
+Independent code review and testing are welcome.
+
+## Packaging and contributing
+
+wmvol currently builds from source, and Gentoo users can install it through the repository overlay. Packages for other distributions are welcome, including AUR, XBPS, NixOS, Debian, and Fedora RPMs.
+
+Please report bugs, compatibility issues, and packaging work through the [GitHub issue tracker](https://github.com/Reedman27/dockapps-collection/issues). Include your distribution, Window Maker version, PipeWire and WirePlumber versions, reproduction steps, and relevant terminal output.
 
 ## License
 
-MIT. Portions (tile shaping, pixel font, LCD style) derived from wmvol, also MIT; see `LICENSE`.
-
-The original Objective-C implementation (v2.0.0) is kept in [`objc/`](objc/) for reference.
+[MIT](LICENSE).
